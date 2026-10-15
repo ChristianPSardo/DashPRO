@@ -2,6 +2,15 @@
 
 Dashboard corporativo em Google Apps Script para solicitações de reposição, execução, produção e Qualidade. A cobertura da Qualidade usa **BASE** como denominador. A aplicação não escreve na planilha.
 
+## Baixar ou copiar os arquivos
+
+- [Baixar o pacote completo Apps Script](entrega/DashPRO-AppsScript.zip)
+- [Copiar Code.gs](entrega/Code.gs)
+- [Copiar Index.html](entrega/Index.html)
+- [Copiar appsscript.json](entrega/appsscript.json)
+
+No GitHub, abra o arquivo e use **Raw / Download raw file** para salvar. Para instalar, use os três arquivos da pasta `entrega/`; não misture com os módulos da pasta `apps-script/`.
+
 ## Instalar no Google Apps Script
 
 A entrega compacta contém **Code.gs**, **Index.html**, **appsscript.json**, LEIA-ME.md e VALIDACAO.md. São os mesmos módulos do repositório, reunidos para facilitar a instalação, sem dependências externas de produção.
