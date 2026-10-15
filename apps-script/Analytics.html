@@ -1,0 +1,77 @@
+<script>
+var DashAnalytics = (function () {
+  'use strict';
+  const pageSheets={overview:'BASE',requests:'BASE',quality:'BASE',replacements:'REPOSIÇÔES',production:'LINK',asakai:'AsakaiDash',articles:'Página5'};
+  const distinct=(rs,key)=>new Set(rs.map(r=>r[key]).filter(v=>v!=null&&v!==''));
+  const sum=(rs,key)=>rs.reduce((s,r)=>s+(typeof r[key]==='number'?r[key]:0),0);
+  const ratio=(n,d)=>d?n/d:null;
+  const pair=r=>JSON.stringify([r.op||null,r.request||null]);
+  function prepare(snapshot){
+    const records={};Object.entries(snapshot.tables).forEach(([name,t])=>{records[name]=t.rows.map(cells=>Object.fromEntries(t.columns.map((key,i)=>[key,cells[i]])));});
+    const q=records.QUALIDADE||[],b=records.BASE||[];
+    return {snapshot,records,indexes:{qualityOps:distinct(q,'op'),qualityRequests:distinct(q,'request'),baseOps:distinct(b,'op'),baseRequests:distinct(b,'request'),qualityPairs:new Set(q.map(pair))}};
+  }
+  function filterRows(rows,state={}){
+    const dims=Object.entries(state.dimensions||{}).filter(([,v])=>v!==null).map(([k,v])=>[k,new Set(v)]);
+    return rows.filter(r=>dims.every(([k,s])=>s.has(r[k]==null||r[k]===''?'(SEM INFORMAÇÃO)':String(r[k])))&&(!state.from||r.dateValid!==false&&r.date>=state.from)&&(!state.to||r.dateValid!==false&&r.date&&r.date<=state.to));
+  }
+  function aggregate(rows,field,metric){
+    const map=new Map();for(const r of rows){const k=r[field]==null||r[field]===''?'(SEM INFORMAÇÃO)':String(r[field]);map.set(k,(map.get(k)||0)+(metric?(typeof r[metric]==='number'?r[metric]:0):1));}
+    return [...map].map(([label,value])=>({label,value,keys:[label]})).sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label,'pt-BR'));
+  }
+  function rank(id,title,rows,field,metric,unit='registros'){
+    let data=aggregate(rows,field,metric);if(data.length>10){const rest=data.slice(10);data=data.slice(0,10).concat([{label:'Outros',value:rest.reduce((s,r)=>s+r.value,0),keys:rest.flatMap(r=>r.keys)}]);}
+    return {id,title,type:'bars',field,unit,data};
+  }
+  function trend(id,title,rows,metric,unit='registros'){
+    const map=new Map();rows.filter(r=>r.dateValid!==false&&r.date).forEach(r=>{const m=r.date.slice(0,7);map.set(m,(map.get(m)||0)+(metric?(r[metric]||0):1));});
+    return {id,title,type:'trend',field:'date',unit,data:[...map].sort(([a],[b])=>a.localeCompare(b)).map(([label,value])=>({label,value,keys:[label]}))};
+  }
+  function kpi(id,label,value,format='number',help=''){return {id,label,value,format,help};}
+  function diagnostics(p,sheets){return (p.snapshot.diagnostics||[]).filter(d=>sheets.includes(d.sheet));}
+  function quality(p,cohortFilters={},eventFilters={}){
+    const base=filterRows(p.records.BASE||[],cohortFilters),all=p.records.QUALIDADE||[];
+    const ops=distinct(base,'op'),req=distinct(base,'request');
+    const linked=all.filter(r=>r.request?req.has(r.request):ops.has(r.op));
+    const events=filterRows(linked,eventFilters);
+    const covOps=[...ops].filter(v=>p.indexes.qualityOps.has(v)).length,covReq=[...req].filter(v=>p.indexes.qualityRequests.has(v)).length;
+    const basePairs=new Set(base.map(pair)),matchedPairs=[...basePairs].filter(k=>p.indexes.qualityPairs.has(k)).length;
+    const groups=new Map();for(const r of events){const k=pair(r);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
+    const latest=[];let reinspections=0;
+    groups.forEach(rs=>{
+      if(rs.length>1)reinspections++;
+      const dated=rs.filter(r=>r.date&&r.dateValid!==false).sort((a,b)=>(b.dateTime||b.date).localeCompare(a.dateTime||a.date));
+      if(!dated.length)return;
+      const stamp=dated[0].dateTime||dated[0].date, tied=dated.filter(r=>(r.dateTime||r.date)===stamp),results=distinct(tied,'status');
+      latest.push({op:rs[0].op,request:rs[0].request,date:dated[0].date,result:results.size>1?'CONFLITANTE':dated[0].status,events:rs.length});
+    });
+    const orphan=all.filter(r=>r.request?!p.indexes.baseRequests.has(r.request):!p.indexes.baseOps.has(r.op));
+    const invalid=events.filter(r=>!r.date||r.dateValid===false).length;
+    let flagDivergences=0;
+    const rows=base.map(r=>{
+      const auditOp=p.indexes.qualityOps.has(r.op),auditRequest=r.request?p.indexes.qualityRequests.has(r.request):null;
+      if(r.opFlag&&(['SIM','NÃO'].includes(r.opFlag))&&((r.opFlag==='SIM')!==auditOp))flagDivergences++;
+      if(r.request&&r.requestFlag&&(['SIM','NÃO'].includes(r.requestFlag))&&((r.requestFlag==='SIM')!==auditRequest))flagDivergences++;
+      return {...r,auditOp:auditOp?'AUDITADA':'NÃO AUDITADA',auditRequest:auditRequest===null?'SEM CHAVE':auditRequest?'AUDITADA':'NÃO AUDITADA'};
+    });
+    const metrics={opCoverage:ratio(covOps,ops.size),requestCoverage:ratio(covReq,req.size),opDenominator:ops.size,requestDenominator:req.size,auditedOps:covOps,auditedRequests:covReq,nonAuditedOps:ops.size-covOps,nonAuditedRequests:req.size-covReq,approval:ratio(events.filter(r=>r.status==='APROVADO').length,events.length),reinspections,orphanEvents:orphan.length,matchedPairs,invalidChronology:invalid,flagDivergences,missingRequest:base.filter(r=>!r.request).length};
+    return {metrics,events,latest,orphanEvents:orphan,rows,diagnostics:diagnostics(p,['BASE','QUALIDADE']),kpis:[
+      kpi('opCoverage','Cobertura de OPs',metrics.opCoverage,'percent',covOps+' auditadas / '+ops.size+' OPs únicas da BASE. Auditada em algum momento até esta leitura.'),
+      kpi('requestCoverage','Cobertura de solicitações',metrics.requestCoverage,'percent',covReq+' auditadas / '+req.size+' solicitações únicas da BASE. Sem chave fica fora do denominador.'),
+      kpi('nonAuditedRequests','Solicitações sem auditoria',metrics.nonAuditedRequests,'number','Solicitações únicas da coorte sem evento correspondente.'),
+      kpi('approval','Aprovação por evento',metrics.approval,'percent','APROVADO / eventos com resultado válido vinculados à coorte. Filtros de evento não mudam a cobertura.')],charts:[
+        {id:'coverage',title:'Cobertura da Qualidade',type:'coverage',field:'auditRequest',unit:'solicitações únicas',data:[{label:'Auditadas',value:covReq,keys:['AUDITADA']},{label:'Não auditadas',value:req.size-covReq,keys:['NÃO AUDITADA']}]},
+        trend('auditTrend','Atividade por data de auditoria',events),rank('results','Resultados de auditoria',events,'status'),rank('shifts','Turno auditado',events,'auditShift')
+      ]};
+  }
+  function view(p,page,state={}){
+    if(page==='quality')return quality(p,state,{});
+    const sheet=pageSheets[page],rs=filterRows(p.records[sheet]||[],state);
+    if(page!=='overview'&&page!=='requests')return operational(p,page,rs);
+    const q=quality(p,state,{});
+    return {rows:rs,diagnostics:diagnostics(p,['BASE']),kpis:[kpi('records','Registros de solicitação',rs.length,'number','Linhas com ID ITEM e OP. IDs repetidos não são excluídos automaticamente.'),kpi('items','Itens distintos',distinct(rs,'itemId').size),kpi('pieces','Peças solicitadas',sum(rs,'pieces'),'number','Soma de FALTA TOTAL por registro; pode conter itens repetidos.'),page==='overview'?q.kpis[1]:kpi('ops','OPs distintas',distinct(rs,'op').size)],charts:[trend('monthly','Evolução das solicitações',rs),rank('reasons','Principais motivos',rs,'reason'),rank('areas','Áreas causadoras',rs,'area'),rank('pcp','Análise PCP',rs,'pcp')]};
+  }
+  function operational(){throw new Error('Página ainda não implementada.');}
+  return {prepare,filterRows,quality,view,pageSheets,aggregate};
+})();
+</script>
