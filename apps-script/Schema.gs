@@ -44,7 +44,7 @@ var DashSchema = (function () {
     var spec=specs[name]; if(!spec)throw new Error('Aba não suportada: '+name);
     var h=values[0] || [];
     spec.forEach(function(d){if(d[1] && headerKey(h[d[0]])!==headerKey(d[1]))throw new Error('Coluna ausente ou deslocada: '+name+' / '+d[1]+' (coluna '+(d[0]+1)+')');});
-    var cols=spec.map(function(d){return d[2];}).concat(['opOriginal','sourceRow','dateValid']);
+    var cols=spec.map(function(d){return d[2];}).concat(['opOriginal','sourceRow','dateValid','dateTime']);
     var out={columns:cols,rows:[],diagnostics:[]},today=day(new Date(context.now),context.timeZone);
     values.slice(1).forEach(function(row,i){
       var source=i+2;
@@ -76,7 +76,10 @@ var DashSchema = (function () {
         return label(v);
       });
       var opCol=spec.find(function(d){return d[2]==='op';});
-      cells.push(opCol?text(row[opCol[0]]):null,source,dateValid);out.rows.push(cells);
+      var dateCol=spec.find(function(d){return d[2]==='date';});
+      var rawDate=dateCol?row[dateCol[0]]:null;
+      var instant=rawDate instanceof Date && Number.isFinite(rawDate.getTime()) ? rawDate.toISOString() : null;
+      cells.push(opCol?text(row[opCol[0]]):null,source,dateValid,instant);out.rows.push(cells);
     });return out;
   }
   function parseSummary(values){

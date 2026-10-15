@@ -7,7 +7,7 @@ var DashApp=(function(){
   const fields={overview:baseFields,requests:baseFields,quality:baseFields,replacements:[['branch','Filial'],['type','Tipo'],['reason','Motivo'],['pcp','Status PCP'],['depot','Status depósito'],['cut','Status corte'],['cd','Status CD']],production:[['unit','Unidade'],['business','Negócio'],['collection','Coleção'],['shift','Turno'],['line','Linha'],['article','Artigo']],asakai:[['block','Bloco do resumo']],articles:[['article','Artigo']]};
   const eventFields=[['status','Resultado'],['auditShift','Turno auditado'],['productionShift','Turno produzido']];
   const empty=()=>({dimensions:{},from:null,to:null});
-  let prepared=null,current='overview',states={},eventState=empty(),model=null,detail='base',detailSelection=null,loader=null,lastMs=0,payloadBytes=0;
+  let prepared=null,current='overview',states={},eventState=empty(),model=null,detail='base',detailSelection=null,loader=null,lastMs=0,payloadBytes=0,requestSequence=0;
   Object.keys(pages).forEach(k=>states[k]=empty());
   function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
   function number(v,max=0){return new Intl.NumberFormat('pt-BR',{maximumFractionDigits:max}).format(v);}
@@ -82,11 +82,29 @@ var DashApp=(function(){
     if(ds.length){const list=node('div','health-list');ds.slice(0,200).forEach(d=>list.append(node('div','',d.sheet+' · linha '+(d.row||'—')+' · '+d.field+' · '+d.code)));if(ds.length>200)list.append(node('p','',number(ds.length-200)+' ocorrências adicionais. Exporte os diagnósticos para a lista completa.'));root.append(list);}
     const b=node('button','button small','Exportar diagnósticos');b.onclick=()=>{const url=URL.createObjectURL(new Blob([DashTable.csv(ds)],{type:'text/csv;charset=utf-8'}));const a=node('a');a.href=url;a.download='dashpro-diagnosticos.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};root.append(b);
   }
+  function removedSelections(next){
+    let removed=0;
+    Object.entries(states).forEach(([page,state])=>{
+      const rs=next.records[DashAnalytics.pageSheets[page]]||[];
+      Object.entries(state.dimensions).forEach(([key,values])=>{if(values===null)return;const available=new Set(rs.map(r=>r[key]==null||r[key]===''?'(SEM INFORMAÇÃO)':String(r[key])));removed+=values.filter(v=>!available.has(v)).length;});
+    });
+    Object.entries(eventState.dimensions).forEach(([key,values])=>{if(values===null)return;const available=new Set((next.records.QUALIDADE||[]).map(r=>String(r[key]??'(SEM INFORMAÇÃO)')));removed+=values.filter(v=>!available.has(v)).length;});
+    return removed;
+  }
   async function refresh(){
-    if(!loader)return;$('refresh').disabled=true;$('load-status').textContent='Lendo planilha…';
-    try{const snapshot=await loader();payloadBytes=new TextEncoder().encode(JSON.stringify(snapshot)).length;prepared=DashAnalytics.prepare(snapshot);$('loading').hidden=true;$('fatal-error').hidden=true;notice('');render();const fmt=new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone,dateStyle:'short',timeStyle:'short'});$('load-status').textContent='Leitura concluída · '+fmt.format(new Date(snapshot.readFinishedAt));$('read-window').textContent='Janela '+new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone,timeStyle:'medium'}).format(new Date(snapshot.readStartedAt))+' → '+new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone,timeStyle:'medium'}).format(new Date(snapshot.readFinishedAt))+' · '+snapshot.timeZone;}
-    catch(error){$('loading').hidden=true;$('load-status').textContent='Leitura não concluída';if(prepared)notice('Os dados exibidos estão desatualizados. '+error.message,true);else{$('fatal-error').hidden=false;$('fatal-error').textContent=error.message||'Não foi possível carregar os dados.';}}
-    finally{$('refresh').disabled=false;}
+    if(!loader)return;const request=++requestSequence;$('refresh').disabled=true;$('load-status').textContent='Lendo planilha…';
+    try{
+      const snapshot=await loader();if(request!==requestSequence)return;
+      const next=DashAnalytics.prepare(snapshot),removed=removedSelections(next);
+      prepared=next;payloadBytes=new TextEncoder().encode(JSON.stringify(snapshot)).length;
+      $('loading').hidden=true;$('fatal-error').hidden=true;notice(removed?removed+' valores selecionados não existem mais nos dados. Os filtros foram preservados; limpe-os para ampliar a seleção.':'');render();
+      const fmt=new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone,dateStyle:'short',timeStyle:'short'}),clock=new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone,timeStyle:'medium'});
+      $('load-status').textContent='Leitura concluída · '+fmt.format(new Date(snapshot.readFinishedAt));$('read-window').textContent='Janela '+clock.format(new Date(snapshot.readStartedAt))+' → '+clock.format(new Date(snapshot.readFinishedAt))+' · '+snapshot.timeZone;
+    }catch(error){
+      if(request!==requestSequence)return;$('loading').hidden=true;$('load-status').textContent='Leitura não concluída';
+      if(prepared)notice('Os dados exibidos estão desatualizados. '+error.message,true);
+      else{$('fatal-error').hidden=false;$('fatal-error').textContent=error.message||'Não foi possível carregar os dados.';}
+    }finally{if(request===requestSequence)$('refresh').disabled=false;}
   }
   async function bootstrap(loadSnapshot){loader=loadSnapshot;await refresh();}
   function googleLoad(){return new Promise((resolve,reject)=>{if(typeof google==='undefined'||!google.script){reject(new Error('Abra a implantação Web App do Apps Script para ler a planilha.'));return;}google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getDashboardData();});}

@@ -7,6 +7,9 @@ var DashAnalytics = (function () {
   const ratio=(n,d)=>d?n/d:null;
   const pair=r=>JSON.stringify([r.op||null,r.request||null]);
   function prepare(snapshot){
+    if(!snapshot || snapshot.version!==1 || !snapshot.tables || !snapshot.unavailable || !Array.isArray(snapshot.diagnostics) || !Number.isFinite(Date.parse(snapshot.readStartedAt)) || !Number.isFinite(Date.parse(snapshot.readFinishedAt)))throw new Error('Snapshot inválido ou incompatível. Atualize novamente.');
+    new Intl.DateTimeFormat('pt-BR',{timeZone:snapshot.timeZone}).format(new Date(snapshot.readStartedAt));
+    Object.values(snapshot.tables).forEach(t=>{if(!Array.isArray(t.columns)||!Array.isArray(t.rows)||new Set(t.columns).size!==t.columns.length||t.rows.some(r=>!Array.isArray(r)||r.length!==t.columns.length))throw new Error('Snapshot com tabela inválida.');});
     const records={};Object.entries(snapshot.tables).forEach(([name,t])=>{records[name]=t.rows.map(cells=>Object.fromEntries(t.columns.map((key,i)=>[key,cells[i]])));});
     const q=records.QUALIDADE||[],b=records.BASE||[];
     return {snapshot,records,indexes:{qualityOps:distinct(q,'op'),qualityRequests:distinct(q,'request'),baseOps:distinct(b,'op'),baseRequests:distinct(b,'request'),qualityPairs:new Set(q.map(pair))}};
