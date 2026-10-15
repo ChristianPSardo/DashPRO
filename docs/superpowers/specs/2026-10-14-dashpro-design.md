@@ -116,7 +116,7 @@ Normalizar rótulos sem reescrever a fonte. Célula Date em campo numérico é a
 
 Campos obrigatórios ausentes bloqueiam a página afetada e indicam aba/campo. As demais páginas continuam disponíveis quando seus contratos são válidos. Aba opcional de resumo ausente gera estado indisponível, não zero. Falha de acesso à planilha bloqueia a carga com mensagem clara; falha de atualização mantém o snapshot anterior, marcado como desatualizado.
 
-Configuração por Script Properties para o ID da planilha, com valor padrão documentado para a fonte solicitada. Escopos mínimos de leitura. Recomendar implantação executando como usuário que acessa e acesso restrito à organização, de acordo com as opções reais da conta. Nunca publicar acesso anônimo como padrão. Testar com uma conta autorizada; não presumir permissões de implantação a partir da leitura do Excel.
+Configuração por Script Properties para o ID da planilha, com valor padrão documentado para a fonte solicitada. O serviço nativo SpreadsheetApp exige o escopo `https://www.googleapis.com/auth/spreadsheets`; o OAuth permite edição, mas a aplicação implementa somente leitura. Essa correção substitui a premissa inicial de que o escopo readonly seria suficiente. Recomendar implantação executando como usuário que acessa e acesso restrito à organização, de acordo com as opções reais da conta. Nunca publicar acesso anônimo como padrão. Testar com uma conta autorizada; não presumir permissões de implantação a partir da leitura do Excel.
 
 ## 8. Validação e critérios de aceite
 

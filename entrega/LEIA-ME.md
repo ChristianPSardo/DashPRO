@@ -17,7 +17,7 @@ A entrega compacta contém **Code.gs**, **Index.html**, **appsscript.json**, LEI
 
 1. Abra a planilha de destino no Google Sheets e selecione **Extensões → Apps Script**. Também é possível criar um projeto independente em script.google.com usando uma conta com acesso à planilha.
 2. No projeto, substitua o conteúdo de `Code.gs` pelo `Code.gs` da entrega compacta. Crie um arquivo **HTML** chamado `Index` e cole o conteúdo de `Index.html`. Não misture a entrega compacta com os módulos individuais.
-3. Em **Configurações do projeto**, habilite a exibição de `appsscript.json`. Substitua seu conteúdo pelo manifesto da entrega. Ele declara V8 e somente o escopo `spreadsheets.readonly`.
+3. Em **Configurações do projeto**, habilite a exibição de `appsscript.json`. Substitua seu conteúdo pelo manifesto da entrega. Ele declara V8 e o escopo `https://www.googleapis.com/auth/spreadsheets`, exigido pelo serviço nativo SpreadsheetApp. Esse escopo permite leitura e edição no OAuth, embora o código deste dashboard só utilize operações de leitura.
 4. Em **Propriedades do script**, configure `SPREADSHEET_ID` com `1ExgwfrUZy9a_aKla_Q4qgfgCY3Rm5cCchDMxPcYU05g`. Esse já é o padrão do código; a propriedade permite trocar a fonte sem editar a aplicação. O código também aceita a URL completa no formato `https://docs.google.com/spreadsheets/d/...` e remove espaços externos.
 5. No editor, selecione **getDashboardData** e execute uma vez. Autorize a leitura da planilha com a conta apropriada. Não é necessário fornecer token, senha ou chave de API ao dashboard.
 6. Selecione **Implantar → Nova implantação → Aplicativo da Web**. Prefira **executar como o usuário que acessa o aplicativo**, se essa opção estiver disponível; cada usuário precisará de permissão de leitura da planilha e poderá precisar autorizar o aplicativo. Restrinja o público à organização ou às contas autorizadas, conforme as opções da sua conta. **Não escolha acesso anônimo.**
@@ -30,6 +30,14 @@ As opções de público e execução variam com Google Workspace e a política d
 ### Alternativa: módulos individuais
 
 Copie todos os arquivos de `apps-script/` para o editor, preservando os nomes: `Code`, `DataService` e `Schema` como arquivos de script; `Index`, `Styles`, `Analytics`, `Charts`, `Filters`, `Table` e `App` como HTML. Use o mesmo manifesto. Não é necessário compilar ou instalar npm para executar no Google.
+
+## Correção de autorização do SpreadsheetApp
+
+Se o erro informar “Permissões necessárias: https://www.googleapis.com/auth/spreadsheets”, substitua o escopo anterior `spreadsheets.readonly` por `spreadsheets` no appsscript.json. O escopo anterior era incompatível com SpreadsheetApp.openById. Essa causa foi confirmada pela exceção real do Google no editor.
+
+Salve o manifesto e execute **getDashboardData** novamente no editor. Revise a solicitação de autorização do Google: ela inclui permissão de edição, exigida pelo serviço nativo, apesar de o código do dashboard apenas ler. Conclua a autorização se estiver de acordo e se a política da organização permitir. Não é necessário tornar a planilha pública ou mudar seu compartilhamento para corrigir esse erro de escopo.
+
+Após o sucesso no editor, atualize a implantação com **Implantar → Gerenciar implantações → Editar → Nova versão → Implantar**. A URL /exec continuará usando a versão antiga até a atualização da implantação.
 
 ## Diagnosticar falha de acesso à planilha
 

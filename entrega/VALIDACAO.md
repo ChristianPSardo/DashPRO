@@ -44,7 +44,7 @@ Execução integrada confirmada:
 
 - `npm test`: 31 testes aprovados; zero falhas ou testes ignorados.
 - `npm run test:ui -- --reporter=line`: 16 testes aprovados em Chromium; zero falhas.
-- `npm run check`: oito unidades JavaScript analisadas; includes resolvidos e manifesto somente leitura validado.
+- `npm run check`: oito unidades JavaScript analisadas; includes resolvidos; verificação inicial de manifesto revisada na correção de escopo descrita abaixo.
 - `npm run benchmark`: p95 59,2 ms com volume sintético representativo.
 - `node scripts/benchmark.cjs .local/snapshot.json`: p95 109,9 ms com o arquivo enviado (execução final; execução anterior: 130,1 ms).
 - `npm run package`: entrega compacta gerada com código, HTML, manifesto e instruções; não inclui o Excel ou snapshots reais.
@@ -79,4 +79,8 @@ A sessão não possui conector de implantação Apps Script. A tentativa de leit
 
 ## Atualização de diagnóstico de acesso
 
-O usuário relatou a mensagem genérica ao executar getDashboardData no editor. A captura anterior descartava a exceção original, impedindo distinguir configuração, autorização do serviço e acesso ao arquivo. Corrigido: normalização de ID/URL, validação prévia, preservação da mensagem do Google e função privada de diagnóstico por metadados. Quatro regressões falharam antes da correção e passaram depois; suíte atual: 35 testes unitários aprovados e verificação de sintaxe/manifesto aprovada. Nenhum escopo foi ampliado. A causa específica na conta Google permanece pendente do erro nativo ou do resultado do diagnóstico executado pelo usuário.
+O usuário relatou a mensagem genérica ao executar getDashboardData no editor. A captura anterior descartava a exceção original, impedindo distinguir configuração, autorização do serviço e acesso ao arquivo. Corrigido: normalização de ID/URL, validação prévia, preservação da mensagem do Google e função privada de diagnóstico por metadados. Quatro regressões falharam antes da correção e passaram depois; suíte atual: 35 testes unitários aprovados e verificação de sintaxe/manifesto aprovada. Nessa etapa nenhum escopo foi ampliado; a causa ainda dependia do erro nativo. O retorno posterior do usuário confirmou a incompatibilidade do escopo, conforme abaixo.
+
+## Correção confirmada: escopo do serviço nativo
+
+A exceção real recebida no editor informa que SpreadsheetApp.openById exige `https://www.googleapis.com/auth/spreadsheets`. O manifesto anterior declarava somente `spreadsheets.readonly`, que era insuficiente. Manifesto, pacote de instalação, teste de integridade e documentação foram corrigidos para o escopo exigido. A regressão de manifesto foi vista falhar antes da correção e passou após ela. A aplicação continua sem operações de escrita; o consentimento OAuth do serviço nativo é mais amplo e inclui edição. A reautorização acontece na conta Google do usuário; esta sessão não concede permissões nem confirma que a autorização foi concluída. Validação local: 35 testes aprovados e verificação de sintaxe/manifesto aprovada.
