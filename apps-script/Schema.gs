@@ -66,7 +66,7 @@ var DashSchema = (function () {
         }
         if(t==='date'){
           var dt=day(v,context.timeZone);
-          if(!dt || dt<'2000-01-01' || dt>'2100-12-31'){
+          if(!dt || !/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt<'2000-01-01' || dt>'2100-12-31'){
             if(v!=null&&v!=='')issue(f,'DATA_INVALIDA');if(f==='date')dateValid=false;return null;
           }
           if(dt>today){issue(f,'DATA_FUTURA');if(f==='date')dateValid=false;}
