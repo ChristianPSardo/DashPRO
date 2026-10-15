@@ -71,7 +71,29 @@ var DashAnalytics = (function () {
     const q=quality(p,state,{});
     return {rows:rs,diagnostics:diagnostics(p,['BASE']),kpis:[kpi('records','Registros de solicitação',rs.length,'number','Linhas com ID ITEM e OP. IDs repetidos não são excluídos automaticamente.'),kpi('items','Itens distintos',distinct(rs,'itemId').size),kpi('pieces','Peças solicitadas',sum(rs,'pieces'),'number','Soma de FALTA TOTAL por registro; pode conter itens repetidos.'),page==='overview'?q.kpis[1]:kpi('ops','OPs distintas',distinct(rs,'op').size)],charts:[trend('monthly','Evolução das solicitações',rs),rank('reasons','Principais motivos',rs,'reason'),rank('areas','Áreas causadoras',rs,'area'),rank('pcp','Análise PCP',rs,'pcp')]};
   }
-  function operational(){throw new Error('Página ainda não implementada.');}
+  function operational(p,page,rs){
+    const model={rows:rs,diagnostics:diagnostics(p,[pageSheets[page]]),metrics:{},kpis:[],charts:[]};
+    if(page==='replacements'){
+      const today=new Intl.DateTimeFormat('en-CA',{timeZone:p.snapshot.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(p.snapshot.readStartedAt));
+      const days=rs.map(r=>r.date&&r.endDate&&r.date<=today&&r.endDate<=today&&r.endDate>=r.date ? (Date.parse(r.endDate)-Date.parse(r.date))/86400000:null).filter(v=>v!==null).sort((a,b)=>a-b);
+      const mid=Math.floor(days.length/2),median=days.length?(days.length%2?days[mid]:(days[mid-1]+days[mid])/2):null;
+      model.metrics={ops:distinct(rs,'op').size,requests:distinct(rs,'request').size,leadEligible:days.length,leadExcluded:rs.length-days.length};
+      model.kpis=[kpi('records','Registros de reposição',rs.length),kpi('pieces','Peças por item',sum(rs,'pieces'),'number','Soma de linhas de itens, não volume único de OP.'),kpi('kg','Consumo válido',sum(rs,'kg'),'kg','Valores inválidos ficam fora da soma.'),kpi('leadTime','Prazo mediano',median,'days',days.length+' prazos válidos; '+model.metrics.leadExcluded+' excluídos. DATA até RECEBIMENTO SLMB.')];
+      model.charts=[trend('replacementTrend','Reposições no período',rs),rank('depot','Status do depósito',rs,'depot'),rank('cut','Status do corte',rs,'cut'),rank('cd','Status do CD',rs,'cd'),rank('types','Tipos de reposição',rs,'type')];
+    }else if(page==='production'){
+      model.kpis=[kpi('produced','Peças apontadas',sum(rs,'produced'),'number','SAFL-QtPCON por registro; não volume físico único de OP.'),kpi('ops','OPs distintas',distinct(rs,'op').size),kpi('requests','Solicitações distintas',distinct(rs,'request').size),kpi('secondQuality','Segunda qualidade apontada',sum(rs,'secondQuality'))];
+      model.charts=[trend('productionTrend','Produção por data de conclusão',rs,'produced','peças apontadas'),rank('units','Unidades de produção',rs,'unit','produced','peças'),rank('business','Negócios',rs,'business','produced','peças'),rank('collection','Coleções',rs,'collection','produced','peças'),rank('articles','Artigos produzidos',rs,'article','produced','peças')];
+    }else if(page==='articles'){
+      model.rows=rs.map(r=>({...r,perThousand:ratio((r.pieces||0)*1000,r.produced)}));
+      model.kpis=[kpi('articles','Artigos no resumo',distinct(rs,'article').size),kpi('produced','Produzido no resumo',sum(rs,'produced')),kpi('pieces','Solicitado no resumo',sum(rs,'pieces')),kpi('perThousand','Peças solicitadas / mil',ratio(sum(rs,'pieces')*1000,sum(rs,'produced')),'decimal','1000 × peças solicitadas / peças produzidas. Não é contagem de solicitações.')];
+      model.charts=[rank('articleRequests','Peças solicitadas por artigo',rs,'article','pieces','peças'),rank('articleVolume','Produção por artigo',rs,'article','produced','peças'),rank('articleRate','Peças solicitadas por mil produzidas',model.rows,'article','perThousand','peças / mil')];
+    }else if(page==='asakai'){
+      model.kpis=[kpi('blocks','Blocos disponíveis',distinct(rs,'block').size),kpi('summaryRows','Valores no resumo',rs.length)];
+      // A generic summary can mix units. Show source values in their own blocks, never sum them.
+      model.charts=[];
+    }else throw new Error('Página desconhecida.');
+    return model;
+  }
   return {prepare,filterRows,quality,view,pageSheets,aggregate};
 })();
 </script>

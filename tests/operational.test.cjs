@@ -1,0 +1,8 @@
+const {test}=require('node:test');const a=require('node:assert/strict');const {load}=require('../scripts/load-source.cjs');const {snapshot}=require('./fixtures/workbook.cjs');const d=load(['Analytics.html']).DashAnalytics;
+const get=(page,overrides={})=>d.view(d.prepare(snapshot(overrides)),page,{});const k=(v,id)=>v.kpis.find(k=>k.id===id).value;
+test('preserves_item_granularity',()=>{const v=get('replacements',{'REPOSIÇÔES':[{op:'1',request:'A',pieces:10,kg:2},{op:'1',request:'A',pieces:20,kg:3}]});a.equal(k(v,'pieces'),30);a.equal(v.metrics.ops,1);a.equal(k(v,'kg'),5)});
+test('calculates_eligible_lead_time',()=>{const v=get('replacements',{'REPOSIÇÔES':[{date:'2026-01-01',endDate:'2026-01-05'},{date:'2026-01-05',endDate:'2026-01-01'},{date:'2026-01-01',endDate:'2029-01-01'}]});a.equal(k(v,'leadTime'),4);a.equal(v.metrics.leadExcluded,2)});
+test('does_not_mix_summary_totals',()=>{const v=get('overview',{AsakaiDash:[{label:'TOTAL',value:999999}]});a.equal(k(v,'pieces'),65)});
+test('computes_requested_pieces_per_thousand',()=>{const v=get('articles',{'Página5':[{article:'A',produced:200,pieces:20},{article:'B',produced:0,pieces:2}]});a.equal(v.rows[0].perThousand,100);a.equal(v.rows[1].perThousand,null)});
+test('separates_pcp_analysis_from_situation',()=>{const v=get('requests');a.ok(!v.kpis.find(x=>x.label==='Pendentes'));a.equal(v.charts.find(x=>x.id==='pcp').data.find(x=>x.label==='ATENDIDA').value,1)});
+test('production_uses_pointed_pieces_not_orders',()=>{const v=get('production',{LINK:[{op:'1',produced:100,secondQuality:3},{op:'1',produced:50,secondQuality:2}]});a.equal(k(v,'produced'),150);a.equal(k(v,'ops'),1);a.equal(k(v,'secondQuality'),5)});
