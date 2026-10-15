@@ -76,3 +76,7 @@ A sessão não possui conector de implantação Apps Script. A tentativa de leit
 - CSS nativo e SVG seguem a arquitetura aprovada e dispensam CDN; a referência Taste de landing pages não foi aplicada como template de dashboard. Custo: componentes próprios precisam manter acessibilidade e testes.
 - Filtros e tabelas foram separados em dois HTMLs adicionais para manter responsabilidades claras. O pacote compacto resolve os includes e os testes verificam sua presença; novo módulo exige atualização da allowlist e do empacotamento.
 - O código permanece na branch local `work`, sem merge, push ou publicação remota. O checkout inicial não tinha branch main remota; a entrega não depende de inventar um destino de integração.
+
+## Atualização de diagnóstico de acesso
+
+O usuário relatou a mensagem genérica ao executar getDashboardData no editor. A captura anterior descartava a exceção original, impedindo distinguir configuração, autorização do serviço e acesso ao arquivo. Corrigido: normalização de ID/URL, validação prévia, preservação da mensagem do Google e função privada de diagnóstico por metadados. Quatro regressões falharam antes da correção e passaram depois; suíte atual: 35 testes unitários aprovados e verificação de sintaxe/manifesto aprovada. Nenhum escopo foi ampliado. A causa específica na conta Google permanece pendente do erro nativo ou do resultado do diagnóstico executado pelo usuário.

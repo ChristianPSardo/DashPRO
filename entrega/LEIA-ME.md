@@ -2,6 +2,15 @@
 
 Dashboard corporativo em Google Apps Script para solicitações de reposição, execução, produção e Qualidade. A cobertura da Qualidade usa **BASE** como denominador. A aplicação não escreve na planilha.
 
+## Baixar ou copiar os arquivos
+
+- [Baixar o pacote completo Apps Script](entrega/DashPRO-AppsScript.zip)
+- [Copiar Code.gs](entrega/Code.gs)
+- [Copiar Index.html](entrega/Index.html)
+- [Copiar appsscript.json](entrega/appsscript.json)
+
+No GitHub, abra o arquivo e use **Raw / Download raw file** para salvar. Para instalar, use os três arquivos da pasta `entrega/`; não misture com os módulos da pasta `apps-script/`.
+
 ## Instalar no Google Apps Script
 
 A entrega compacta contém **Code.gs**, **Index.html**, **appsscript.json**, LEIA-ME.md e VALIDACAO.md. São os mesmos módulos do repositório, reunidos para facilitar a instalação, sem dependências externas de produção.
@@ -9,7 +18,7 @@ A entrega compacta contém **Code.gs**, **Index.html**, **appsscript.json**, LEI
 1. Abra a planilha de destino no Google Sheets e selecione **Extensões → Apps Script**. Também é possível criar um projeto independente em script.google.com usando uma conta com acesso à planilha.
 2. No projeto, substitua o conteúdo de `Code.gs` pelo `Code.gs` da entrega compacta. Crie um arquivo **HTML** chamado `Index` e cole o conteúdo de `Index.html`. Não misture a entrega compacta com os módulos individuais.
 3. Em **Configurações do projeto**, habilite a exibição de `appsscript.json`. Substitua seu conteúdo pelo manifesto da entrega. Ele declara V8 e somente o escopo `spreadsheets.readonly`.
-4. Em **Propriedades do script**, configure `SPREADSHEET_ID` com `1ExgwfrUZy9a_aKla_Q4qgfgCY3Rm5cCchDMxPcYU05g`. Esse já é o padrão do código; a propriedade permite trocar a fonte sem editar a aplicação. Não use a URL inteira como ID.
+4. Em **Propriedades do script**, configure `SPREADSHEET_ID` com `1ExgwfrUZy9a_aKla_Q4qgfgCY3Rm5cCchDMxPcYU05g`. Esse já é o padrão do código; a propriedade permite trocar a fonte sem editar a aplicação. O código também aceita a URL completa no formato `https://docs.google.com/spreadsheets/d/...` e remove espaços externos.
 5. No editor, selecione **getDashboardData** e execute uma vez. Autorize a leitura da planilha com a conta apropriada. Não é necessário fornecer token, senha ou chave de API ao dashboard.
 6. Selecione **Implantar → Nova implantação → Aplicativo da Web**. Prefira **executar como o usuário que acessa o aplicativo**, se essa opção estiver disponível; cada usuário precisará de permissão de leitura da planilha e poderá precisar autorizar o aplicativo. Restrinja o público à organização ou às contas autorizadas, conforme as opções da sua conta. **Não escolha acesso anônimo.**
 7. Se a política da organização exigir executar como o proprietário, o app lerá com as permissões do proprietário; limite rigorosamente quem acessa o Web App, pois esses usuários recebem os dados projetados da planilha mesmo sem acesso direto a ela. Essa configuração deve seguir a política interna.
@@ -21,6 +30,16 @@ As opções de público e execução variam com Google Workspace e a política d
 ### Alternativa: módulos individuais
 
 Copie todos os arquivos de `apps-script/` para o editor, preservando os nomes: `Code`, `DataService` e `Schema` como arquivos de script; `Index`, `Styles`, `Analytics`, `Charts`, `Filters`, `Table` e `App` como HTML. Use o mesmo manifesto. Não é necessário compilar ou instalar npm para executar no Google.
+
+## Diagnosticar falha de acesso à planilha
+
+Se o erro ocorrer no editor ao executar getDashboardData, use a função **diagnosticarAcessoPlanilha_**. Ela abre a fonte configurada e consulta somente metadados, sem ler células ou alterar permissões. Se houver falha, o editor exibirá a exceção original do Google; o endpoint também preserva esse detalhe a partir desta versão.
+
+1. Confirme que SPREADSHEET_ID está nas **Propriedades do script**, com o ID ou a URL completa da planilha. Espaços externos são removidos; outros formatos inválidos são rejeitados antes de chamar o Google.
+2. Execute **diagnosticarAcessoPlanilha_** no editor e conclua a autorização caso o Google a solicite. Se a política da organização bloquear a autorização, registre o erro e consulte o administrador.
+3. Confira o resultado: `acesso: OK` indica que a conta do editor abriu a fonte. Se falhar, copie a mensagem original da execução, sem compartilhar tokens ou credenciais. Uma falha de autorização do serviço e uma falha de acesso ao arquivo exigem correções diferentes; não amplie escopos ou compartilhamento sem confirmar a causa.
+
+Se o teste no editor funcionar e apenas o Web App falhar, confira a conta configurada em **Executar como** e publique uma nova versão com o código atualizado. A autorização da conta do editor não comprova acesso pela identidade de outra implantação.
 
 ## Uso
 
