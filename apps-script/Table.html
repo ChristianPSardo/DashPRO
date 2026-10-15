@@ -1,0 +1,22 @@
+<script>
+var DashTable=(function(){
+  let rows=[],columns=[],page=0,sortKey=null,sortDir=1;
+  const labels={itemId:'ID item',op:'OP',opOriginal:'OP original',request:'Solicitação',date:'Data',article:'Artigo',articleShort:'Sigla artigo',area:'Área causadora',reason:'Motivo',specificReason:'Motivo específico',macro:'Macrofase',pieces:'Peças solicitadas',orderPieces:'Peças da OP',unit:'Unidade',situation:'Situação',pcp:'Análise PCP',block:'Bloco',phase:'Fase',shipment:'Embarque',auditOp:'Auditoria OP',auditRequest:'Auditoria solicitação',status:'Resultado',auditShift:'Turno auditado',productionShift:'Turno produzido',requestedWeight:'Peso solicitado',cutWeight:'Peso corte',auditWeight:'Peso auditado',sourceRow:'Linha na origem',branch:'Filial',type:'Tipo',kg:'Consumo kg',depot:'Depósito',cut:'Corte',cd:'CD',endDate:'Recebimento SLMB',produced:'Peças produzidas',secondQuality:'Segunda qualidade',business:'Negócio',collection:'Coleção',shift:'Turno',line:'Linha',value:'Valor original',label:'Indicador',sourceCell:'Célula de origem',perThousand:'Peças / mil',result:'Resultado mais recente',events:'Eventos'};
+  const hidden=new Set(['dateValid','dateTime','sourceRatio']);
+  const value=v=>v==null?'—':typeof v==='number'?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(v):String(v);
+  function setRows(newRows,reset=true){rows=newRows.slice();columns=[...new Set(rows.flatMap(r=>Object.keys(r)))].filter(k=>!hidden.has(k));if(reset)page=0;draw();}
+  function sorted(){if(!sortKey)return rows;return rows.slice().sort((a,b)=>{const x=a[sortKey],y=b[sortKey];return sortDir*(typeof x==='number'&&typeof y==='number'?x-y:String(x??'').localeCompare(String(y??''),'pt-BR',{numeric:true}));});}
+  function draw(){
+    const head=document.querySelector('#detail-table thead'),body=document.querySelector('#detail-table tbody');head.replaceChildren();body.replaceChildren();
+    const h=document.createElement('tr');columns.forEach(key=>{const cell=document.createElement('th');cell.scope='col';if(sortKey===key)cell.setAttribute('aria-sort',sortDir===1?'ascending':'descending');const b=document.createElement('button');b.textContent=(labels[key]||key)+(sortKey===key?(sortDir===1?' ↑':' ↓'):'');b.type='button';b.onclick=()=>{sortDir=sortKey===key?-sortDir:1;sortKey=key;page=0;draw();};cell.append(b);h.append(cell);});head.append(h);
+    page=Math.min(page,Math.max(0,Math.ceil(rows.length/50)-1));
+    sorted().slice(page*50,page*50+50).forEach(r=>{const tr=document.createElement('tr');columns.forEach(key=>{const td=document.createElement('td'),v=value(r[key]);td.title=v;if(['status','auditOp','auditRequest','pcp','depot','cut','cd','result'].includes(key)){const badge=document.createElement('span');badge.className='cell-badge'+(['APROVADO','AUDITADA','ATENDIDA','ENTREGUE','RECEBIDO'].includes(v)?' good':['REPROVADO','CANCELADO','CONFLITANTE'].includes(v)?' bad':['NÃO AUDITADA','ANDAMENTO','FALTA BAIXA'].includes(v)?' wait':'');badge.textContent=v;td.append(badge);}else td.textContent=v;tr.append(td);});body.append(tr);});
+    if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=Math.max(1,columns.length);td.className='chart-empty';td.textContent='Nenhum registro neste recorte. Ajuste ou restaure os filtros.';tr.append(td);body.append(tr);}
+    document.getElementById('page-info').textContent=rows.length?`${page*50+1}–${Math.min(rows.length,page*50+50)} de ${value(rows.length)} registros`:'0 registros';document.getElementById('prev').disabled=page===0;document.getElementById('next').disabled=(page+1)*50>=rows.length;
+  }
+  function csv(rs){const cols=[...new Set(rs.flatMap(r=>Object.keys(r)))].filter(k=>!hidden.has(k));function escape(v){let t=v==null?'':String(v);if(typeof v==='string'&&/^[\s\u0000-\u001f]*[=+@\-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';}return '\uFEFF'+[cols.map(k=>escape(labels[k]||k)).join(';'),...rs.map(r=>cols.map(k=>escape(r[k])).join(';'))].join('\r\n');}
+  function download(){const url=URL.createObjectURL(new Blob([csv(sorted())],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='dashpro-recorte.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  function init(){document.getElementById('prev').onclick=()=>{page--;draw();};document.getElementById('next').onclick=()=>{page++;draw();};document.getElementById('export').onclick=download;}
+  return {init,setRows,csv,labels};
+})();
+</script>

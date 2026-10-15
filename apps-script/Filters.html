@@ -1,0 +1,39 @@
+<script>
+var DashFilters=(function(){
+  let active=null;
+  const $=id=>document.getElementById(id);
+  const label=v=>v==null||v===''?'(SEM INFORMAÇÃO)':String(v);
+  function mount(root,fields,rows,state,onChange,{dates=true,prefix=''}={}){
+    root.replaceChildren();
+    if(dates){
+      const wrapper=document.createElement('div');wrapper.className='date-filter';const title=document.createElement('span');title.textContent=prefix||'Período';wrapper.append(title);
+      ['from','to'].forEach((key,i)=>{if(i){const s=document.createElement('span');s.textContent='até';wrapper.append(s);}const input=document.createElement('input');input.type='date';input.value=state[key]||'';input.setAttribute('aria-label',(prefix||'Período')+(i?' final':' inicial'));input.onchange=()=>{state[key]=input.value||null;onChange();};wrapper.append(input);});root.append(wrapper);
+    }
+    fields.forEach(([key,title])=>{
+      const b=document.createElement('button');b.type='button';b.className='filter-button'+(state.dimensions[key]!=null?' is-filtered':'');b.textContent=title;b.setAttribute('aria-label',title);b.setAttribute('aria-haspopup','dialog');b.onclick=()=>open(key,title,rows,state,onChange,b);root.append(b);
+    });
+  }
+  function open(key,title,rows,state,onChange,trigger){
+    const options=[...new Set(rows.map(r=>label(r[key])))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
+    active={key,title,options,selected:state.dimensions[key]===null||state.dimensions[key]===undefined?null:new Set(state.dimensions[key]),state,onChange,trigger};
+    $('filter-title').textContent=title;$('option-search').value='';renderOptions();$('filter-dialog').showModal();$('option-search').focus();
+  }
+  function renderOptions(){
+    if(!active)return;const query=$('option-search').value.toLocaleUpperCase('pt-BR'),matches=active.options.filter(v=>v.toLocaleUpperCase('pt-BR').includes(query)),shown=matches.slice(0,250),root=$('options');root.replaceChildren();
+    $('option-count').textContent=matches.length+' opções'+(matches.length>250?' · refine a pesquisa para ver as demais':'');
+    if(!shown.length){const p=document.createElement('p');p.className='options-empty';p.textContent='Nenhuma opção encontrada.';root.append(p);}
+    shown.forEach((value,i)=>{const l=document.createElement('label');l.className='option';const c=document.createElement('input');c.type='checkbox';c.id='option-'+i;c.checked=active.selected===null||active.selected.has(value);c.onchange=()=>{if(active.selected===null)active.selected=new Set(active.options);if(c.checked)active.selected.add(value);else active.selected.delete(value);};l.append(c,document.createTextNode(value));root.append(l);});
+  }
+  function init(){
+    $('option-search').oninput=renderOptions;
+    $('select-all').onclick=()=>{active.selected=null;renderOptions();};
+    $('select-none').onclick=()=>{active.selected=new Set();renderOptions();};
+    $('clear-selection').onclick=()=>{active.selected=null;renderOptions();};
+    $('filter-dialog').addEventListener('close',()=>{if(!active)return;const a=active;active=null;if($('filter-dialog').returnValue==='done'){a.state.dimensions[a.key]=a.selected===null?null:[...a.selected];a.onChange();}if(a.trigger.isConnected)a.trigger.focus();});
+  }
+  function chips(root,fields,state,onChange){
+    root.replaceChildren();fields.forEach(([key,title])=>{const selected=state.dimensions[key];if(selected==null)return;const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=title+': '+(selected.length===0?'nenhuma opção':selected.length<=2?selected.join(', '):selected.length+' selecionados')+' ×';b.setAttribute('aria-label','Remover filtro '+title);b.onclick=()=>{state.dimensions[key]=null;onChange();};root.append(b);});
+  }
+  return {init,mount,chips};
+})();
+</script>
