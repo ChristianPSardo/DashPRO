@@ -1,0 +1,7 @@
+node_modules/
+.superpowers/
+test-results/
+playwright-report/
+.local/
+*.xlsx
+*.zip
