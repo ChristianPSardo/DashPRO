@@ -1,0 +1,3 @@
+const {test}=require('node:test');const a=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');
+test('complete_appsscript_delivery_and_minimum_scope',()=>{a.ok(fs.existsSync('README.md'));a.ok(fs.existsSync('docs/VALIDATION.md'));const m=JSON.parse(fs.readFileSync('apps-script/appsscript.json'));a.equal(m.runtimeVersion,'V8');a.deepEqual(m.oauthScopes,['https://www.googleapis.com/auth/spreadsheets.readonly']);const html=fs.readFileSync('apps-script/Index.html','utf8');for(const match of html.matchAll(/include_\('([A-Za-z]+)'\)/g))a.ok(fs.existsSync('apps-script/'+match[1]+'.html'),match[1]);});
+test('javascript_and_manifest_integrity_checker_exists',()=>{a.ok(fs.existsSync('scripts/check-appsscript.cjs'));});

@@ -1,1 +1,19 @@
-{"name":"dashpro","version":"1.0.0","private":true,"scripts":{"test":"node --test tests/*.test.cjs","test:ui":"playwright test","check":"node scripts/check-appsscript.cjs","preview":"node scripts/preview.cjs","benchmark":"node scripts/benchmark.cjs"},"engines":{"node":">=24"},"devDependencies":{"@playwright/test":"1.56.1"}}
+{
+  "name": "dashpro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "playwright test",
+    "check": "node scripts/check-appsscript.cjs",
+    "preview": "node scripts/preview.cjs",
+    "benchmark": "node scripts/benchmark.cjs",
+    "package": "node scripts/package-delivery.cjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
