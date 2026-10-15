@@ -7,12 +7,14 @@ var DashCharts=(function(){
   function render(container,model,onSelect){
     container.replaceChildren();container.dataset.chart=model.id;
     const head=el('div','chart-heading'),titles=el('div');titles.append(el('h3','',model.title),el('p','chart-subtitle',model.unit+' · clique para filtrar'));head.append(titles);container.append(head);
-    if(!model.data.length || model.data.every(d=>d.value===0)){container.append(el('div','chart-empty','Sem dados para este recorte. Ajuste os filtros para explorar.'));return;}
+    if(!model.data.length){container.append(el('div','chart-empty','Sem dados para este recorte. Ajuste os filtros para explorar.'));return;}
     const visual=el('div','chart-visual');container.append(visual);
-    if(model.type==='trend')drawTrend(visual,model,onSelect);else if(model.type==='coverage')drawCoverage(visual,model,onSelect);else drawBars(visual,model,onSelect);
+    const valid={...model,data:model.data.filter(d=>Number.isFinite(d.value))};
+    if(!valid.data.length || model.type==='coverage' && valid.data.every(d=>d.value===0))visual.append(el('div','chart-empty','Sem base para calcular este indicador no recorte.'));
+    else if(model.type==='trend')drawTrend(visual,valid,onSelect);else if(model.type==='coverage')drawCoverage(visual,valid,onSelect);else drawBars(visual,valid,onSelect);
     const details=el('details','chart-data');details.append(el('summary','','Ver valores em tabela'));
     const t=el('table'),thead=el('thead'),tr=el('tr');tr.append(el('th','','Categoria'),el('th','',model.unit));thead.append(tr);t.append(thead);
-    const body=el('tbody');model.data.forEach(d=>{const row=el('tr');row.append(el('td','',d.label),el('td','',number(d.value)));body.append(row);});t.append(body);details.append(t);container.append(details);
+    const body=el('tbody');model.data.forEach(d=>{const row=el('tr');row.append(el('td','',d.label),el('td','',d.value===null?'Sem base':number(d.value)));body.append(row);});t.append(body);details.append(t);container.append(details);
   }
   function drawBars(root,m,select){
     const max=Math.max(...m.data.map(d=>d.value),1);

@@ -25,6 +25,7 @@ var DashSchema = (function () {
   }
   function normalizeOrder(v) { return normalizeId(typeof v === 'string' ? v.replace(/\s*\(\d+\)\s*$/,'') : v); }
   function day(v,zone) {
+    if(typeof v==='string' && /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(v))v=new Date(v);
     if (v instanceof Date) {
       if (!Number.isFinite(v.getTime())) return null;
       return new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(v);
@@ -69,7 +70,8 @@ var DashSchema = (function () {
           if(!dt || !/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt<'2000-01-01' || dt>'2100-12-31'){
             if(v!=null&&v!=='')issue(f,'DATA_INVALIDA');if(f==='date')dateValid=false;return null;
           }
-          if(dt>today){issue(f,'DATA_FUTURA');if(f==='date')dateValid=false;}
+          var moment=v instanceof Date?v.getTime():typeof v==='string' && /T.+(?:Z|[+-]\d{2}:\d{2})$/.test(v)?Date.parse(v):NaN;
+          if(dt>today || Number.isFinite(moment)&&moment>Date.parse(context.now)){issue(f,'DATA_FUTURA');if(f==='date')dateValid=false;}
           return dt;
         }
         if(t==='shipment')return v instanceof Date ? day(v,context.timeZone) : label(v);
@@ -78,7 +80,7 @@ var DashSchema = (function () {
       var opCol=spec.find(function(d){return d[2]==='op';});
       var dateCol=spec.find(function(d){return d[2]==='date';});
       var rawDate=dateCol?row[dateCol[0]]:null;
-      var instant=rawDate instanceof Date && Number.isFinite(rawDate.getTime()) ? rawDate.toISOString() : null;
+      var instant=rawDate instanceof Date && Number.isFinite(rawDate.getTime()) ? rawDate.toISOString() : typeof rawDate==='string' && /T.+(?:Z|[+-]\d{2}:\d{2})$/.test(rawDate) && Number.isFinite(Date.parse(rawDate)) ? new Date(rawDate).toISOString() : null;
       cells.push(opCol?text(row[opCol[0]]):null,source,dateValid,instant);out.rows.push(cells);
     });return out;
   }

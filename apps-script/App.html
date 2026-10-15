@@ -40,7 +40,8 @@ var DashApp=(function(){
     const dates=rows.filter(r=>r.date&&r.dateValid!==false).map(r=>r.date).sort();$('analysis-caption').textContent=dates.length?(s.from||dates[0])+' → '+(s.to||dates.at(-1))+' · clique para explorar':'Selecione um gráfico para explorar';
   }
   function drawMetrics(){
-    $('metrics').replaceChildren();model.kpis.forEach(k=>{const c=node('article','metric');c.dataset.kpi=k.id;const label=node('div','metric-label',k.label);if(k.help){const help=node('span','info-tip','i');help.title=k.help;help.setAttribute('aria-label',k.help);help.tabIndex=0;label.append(help);}const val=node('div','metric-value',value(k));if(k.value!=null&&['kg','days'].includes(k.format))val.append(node('span','metric-unit',k.format==='kg'?'kg':'dias'));c.append(label,val);if(k.help)c.append(node('p','metric-help',k.help));$('metrics').append(c);});
+    $('metrics').replaceChildren();model.kpis.slice(0,4).forEach(k=>{const c=node('article','metric');c.dataset.kpi=k.id;const label=node('div','metric-label',k.label);if(k.help){const help=node('span','info-tip','i');help.title=k.help;help.setAttribute('aria-label',k.help);help.tabIndex=0;label.append(help);}const val=node('div','metric-value',value(k));if(k.value!=null&&['kg','days'].includes(k.format))val.append(node('span','metric-unit',k.format==='kg'?'kg':'dias'));c.append(label,val);if(k.help)c.append(node('p','metric-help',k.help));$('metrics').append(c);});
+    if(model.kpis.length>4){const extras=node('div','metric-summary');extras.setAttribute('role','group');extras.setAttribute('aria-label','Indicadores complementares');model.kpis.slice(4).forEach(k=>{const item=node('span');item.dataset.kpi=k.id;item.append(node('span','',k.label+': '),node('strong','metric-value',value(k)));extras.append(item);});$('metrics').append(extras);}
   }
   function drawQualityContext(){
     const c=$('quality-context');c.hidden=current!=='quality';c.replaceChildren();if(current!=='quality')return;

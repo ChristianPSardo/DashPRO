@@ -26,6 +26,13 @@ var DashAnalytics = (function () {
     let data=aggregate(rows,field,metric);if(data.length>10){const rest=data.slice(10);data=data.slice(0,10).concat([{label:'Outros',value:rest.reduce((s,r)=>s+r.value,0),keys:rest.flatMap(r=>r.keys)}]);}
     return {id,title,type:'bars',field,unit,data};
   }
+  function rateRank(rows){
+    const groups=new Map();
+    rows.forEach(r=>{const label=r.article||'(SEM INFORMAÇÃO)';if(!groups.has(label))groups.set(label,{label,keys:[label],numerator:0,denominator:0});const g=groups.get(label);g.numerator+=typeof r.pieces==='number'?r.pieces:0;g.denominator+=typeof r.produced==='number'?r.produced:0;});
+    let data=[...groups.values()].map(g=>({...g,value:ratio(g.numerator*1000,g.denominator)})).sort((a,b)=>a.value===null?b.value===null?a.label.localeCompare(b.label,'pt-BR'):1:b.value===null?-1:b.value-a.value||a.label.localeCompare(b.label,'pt-BR'));
+    if(data.length>10){const rest=data.slice(10),n=rest.reduce((s,r)=>s+r.numerator,0),d=rest.reduce((s,r)=>s+r.denominator,0);data=data.slice(0,10).concat([{label:'Outros',keys:rest.flatMap(r=>r.keys),value:ratio(n*1000,d),numerator:n,denominator:d}]);}
+    return {id:'articleRate',title:'Peças solicitadas por mil produzidas',type:'bars',field:'article',unit:'peças / mil',data};
+  }
   function trend(id,title,rows,metric,unit='registros'){
     const map=new Map();rows.filter(r=>r.dateValid!==false&&r.date).forEach(r=>{const m=r.date.slice(0,7);map.set(m,(map.get(m)||0)+(metric?(r[metric]||0):1));});
     return {id,title,type:'trend',field:'date',unit,data:[...map].sort(([a],[b])=>a.localeCompare(b)).map(([label,value])=>({label,value,keys:[label]}))};
@@ -72,7 +79,7 @@ var DashAnalytics = (function () {
     const sheet=pageSheets[page],rs=filterRows(p.records[sheet]||[],state);
     if(page!=='overview'&&page!=='requests')return operational(p,page,rs);
     const q=quality(p,state,{});
-    return {rows:rs,diagnostics:diagnostics(p,['BASE']),kpis:[kpi('records','Registros de solicitação',rs.length,'number','Linhas com ID ITEM e OP. IDs repetidos não são excluídos automaticamente.'),kpi('items','Itens distintos',distinct(rs,'itemId').size),kpi('pieces','Peças solicitadas',sum(rs,'pieces'),'number','Soma de FALTA TOTAL por registro; pode conter itens repetidos.'),page==='overview'?q.kpis[1]:kpi('ops','OPs distintas',distinct(rs,'op').size)],charts:[trend('monthly','Evolução das solicitações',rs),rank('reasons','Principais motivos',rs,'reason'),rank('areas','Áreas causadoras',rs,'area'),rank('pcp','Análise PCP',rs,'pcp')]};
+    return {rows:rs,diagnostics:diagnostics(p,['BASE']),kpis:[kpi('records','Registros de solicitação',rs.length,'number','Linhas com ID ITEM e OP. IDs repetidos não são excluídos automaticamente.'),kpi('items','Itens distintos',distinct(rs,'itemId').size),kpi('pieces','Peças solicitadas',sum(rs,'pieces'),'number','Soma de FALTA TOTAL por registro; pode conter itens repetidos.'),page==='overview'?q.kpis[1]:kpi('ops','OPs distintas',distinct(rs,'op').size)].concat(page==='overview'?[kpi('ops','OPs distintas',distinct(rs,'op').size)]:[]).concat([kpi('requests','Solicitações distintas',distinct(rs,'request').size),kpi('missingRequest','Registros sem solicitação',rs.filter(r=>!r.request).length)]),charts:[trend('monthly','Evolução das solicitações',rs),rank('reasons','Principais motivos',rs,'reason'),rank('areas','Áreas causadoras',rs,'area'),rank('pcp','Análise PCP',rs,'pcp')]};
   }
   function operational(p,page,rs){
     const model={rows:rs,diagnostics:diagnostics(p,[pageSheets[page]]),metrics:{},kpis:[],charts:[]};
@@ -81,7 +88,7 @@ var DashAnalytics = (function () {
       const days=rs.map(r=>r.date&&r.endDate&&r.date<=today&&r.endDate<=today&&r.endDate>=r.date ? (Date.parse(r.endDate)-Date.parse(r.date))/86400000:null).filter(v=>v!==null).sort((a,b)=>a-b);
       const mid=Math.floor(days.length/2),median=days.length?(days.length%2?days[mid]:(days[mid-1]+days[mid])/2):null;
       model.metrics={ops:distinct(rs,'op').size,requests:distinct(rs,'request').size,leadEligible:days.length,leadExcluded:rs.length-days.length};
-      model.kpis=[kpi('records','Registros de reposição',rs.length),kpi('pieces','Peças por item',sum(rs,'pieces'),'number','Soma de linhas de itens, não volume único de OP.'),kpi('kg','Consumo válido',sum(rs,'kg'),'kg','Valores inválidos ficam fora da soma.'),kpi('leadTime','Prazo mediano',median,'days',days.length+' prazos válidos; '+model.metrics.leadExcluded+' excluídos. DATA até RECEBIMENTO SLMB.')];
+      model.kpis=[kpi('records','Registros de reposição',rs.length),kpi('pieces','Peças por item',sum(rs,'pieces'),'number','Soma de linhas de itens, não volume único de OP.'),kpi('kg','Consumo válido',sum(rs,'kg'),'kg','Valores inválidos ficam fora da soma.'),kpi('leadTime','Prazo mediano',median,'days',days.length+' prazos válidos; '+model.metrics.leadExcluded+' excluídos. DATA até RECEBIMENTO SLMB.'),kpi('requests','Solicitações distintas',model.metrics.requests),kpi('ops','OPs distintas',model.metrics.ops)];
       model.charts=[trend('replacementTrend','Reposições no período',rs),rank('depot','Status do depósito',rs,'depot'),rank('cut','Status do corte',rs,'cut'),rank('cd','Status do CD',rs,'cd'),rank('types','Tipos de reposição',rs,'type')];
     }else if(page==='production'){
       model.kpis=[kpi('produced','Peças apontadas',sum(rs,'produced'),'number','SAFL-QtPCON por registro; não volume físico único de OP.'),kpi('ops','OPs distintas',distinct(rs,'op').size),kpi('requests','Solicitações distintas',distinct(rs,'request').size),kpi('secondQuality','Segunda qualidade apontada',sum(rs,'secondQuality'))];
@@ -89,7 +96,7 @@ var DashAnalytics = (function () {
     }else if(page==='articles'){
       model.rows=rs.map(r=>({...r,perThousand:ratio((r.pieces||0)*1000,r.produced)}));
       model.kpis=[kpi('articles','Artigos no resumo',distinct(rs,'article').size),kpi('produced','Produzido no resumo',sum(rs,'produced')),kpi('pieces','Solicitado no resumo',sum(rs,'pieces')),kpi('perThousand','Peças solicitadas / mil',ratio(sum(rs,'pieces')*1000,sum(rs,'produced')),'decimal','1000 × peças solicitadas / peças produzidas. Não é contagem de solicitações.')];
-      model.charts=[rank('articleRequests','Peças solicitadas por artigo',rs,'article','pieces','peças'),rank('articleVolume','Produção por artigo',rs,'article','produced','peças'),rank('articleRate','Peças solicitadas por mil produzidas',model.rows,'article','perThousand','peças / mil')];
+      model.charts=[rank('articleRequests','Peças solicitadas por artigo',rs,'article','pieces','peças'),rank('articleVolume','Produção por artigo',rs,'article','produced','peças'),rateRank(rs)];
     }else if(page==='asakai'){
       model.kpis=[kpi('blocks','Blocos disponíveis',distinct(rs,'block').size),kpi('summaryRows','Valores no resumo',rs.length)];
       // A generic summary can mix units. Show source values in their own blocks, never sum them.

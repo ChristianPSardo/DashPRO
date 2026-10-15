@@ -1,6 +1,6 @@
 # DashPRO — especificação do dashboard corporativo
 
-Data: 14/10/2026. Estado: especificação e plano aprovados pelo usuário; implementação em andamento.
+Data: 14/10/2026. Estado: especificação e plano aprovados pelo usuário; implementação concluída e validada localmente; implantação online pendente.
 
 ## 1. Objetivo e escopo aprovado
 

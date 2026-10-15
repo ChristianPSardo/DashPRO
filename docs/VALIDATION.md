@@ -34,7 +34,7 @@ Chromium 154.0.8037.57, Node v24.19.0, Linux x64, AMD EPYC 9V74, 5 CPUs lógicas
 | Dados | Payload JSON | Abertura local | p95 filtros | Chamadas de dados |
 |---|---:|---:|---:|---:|
 | Sintéticos com volume representativo | 5.635.679 bytes | 414 ms | 59,2 ms | 1 |
-| Arquivo enviado, snapshot projetado | 10.865.866 bytes | 756 ms | 130,1 ms | 1 |
+| Arquivo enviado, snapshot projetado | 10.865.866 bytes | 613 ms | 109,9 ms | 1 |
 
 Os dois testes ficaram abaixo de 200 ms. Esses tempos não incluem leitura remota do Google Sheets, autenticação ou cotas do Apps Script. Não estabelecem tempo de abertura no Google nem desempenho em outra máquina.
 
@@ -42,15 +42,24 @@ Os dois testes ficaram abaixo de 200 ms. Esses tempos não incluem leitura remot
 
 Execução integrada confirmada:
 
-- `npm test`: 27 testes aprovados; zero falhas ou testes ignorados.
-- `npm run test:ui -- --reporter=line`: 13 testes aprovados em Chromium; zero falhas.
+- `npm test`: 31 testes aprovados; zero falhas ou testes ignorados.
+- `npm run test:ui -- --reporter=line`: 16 testes aprovados em Chromium; zero falhas.
 - `npm run check`: oito unidades JavaScript analisadas; includes resolvidos e manifesto somente leitura validado.
 - `npm run benchmark`: p95 59,2 ms com volume sintético representativo.
-- `node scripts/benchmark.cjs .local/snapshot.json`: p95 130,1 ms com o arquivo enviado.
+- `node scripts/benchmark.cjs .local/snapshot.json`: p95 109,9 ms com o arquivo enviado (execução final; execução anterior: 130,1 ms).
 - `npm run package`: entrega compacta gerada com código, HTML, manifesto e instruções; não inclui o Excel ou snapshots reais.
 - `git diff --check`: sem erros de whitespace.
 
-Os testes novos foram executados primeiro em estado de falha e depois aprovados, com exceção de casos que já verificavam comportamento existente e configuração/empacotamento reversível. A revisão independente do conjunto será registrada em complemento após a leitura final.
+Os testes novos foram executados primeiro em estado de falha e depois aprovados, com exceção de casos que já verificavam comportamento existente e configuração/empacotamento reversível. A revisão independente identificou quatro problemas, corrigidos em uma única rodada, com regressões reproduzidas antes da correção:
+
+1. Horários futuros dentro do mesmo dia agora invalidam a cronologia, preservando a presença para cobertura.
+2. Taxas por artigo e a categoria Outros usam numeradores e denominadores agregados; produção zero mantém Sem base, inclusive no gráfico.
+3. OPs da visão geral, solicitações distintas e registros sem chave ganharam indicadores complementares visíveis.
+4. O atalho de teclado para o conteúdo navega dentro do iframe do Web App, com teste em iframe real do Chromium.
+
+A suite final passou com 31 testes unitários e 16 testes de navegador. Nenhum achado menor foi adiado. A revisão não substitui execução no Google.
+
+A entrega compacta foi aberta com o snapshot do arquivo real: sete páginas, cobertura 39/1.505, sem erros de JavaScript e sem transbordamento da página em 320, 768, 1.024 e 1.440 px. Essa verificação usa fronteira de carga local; não autentica no Google.
 
 ## Não executado online
 
@@ -60,3 +69,10 @@ Os testes novos foram executados primeiro em estado de falha e depois aprovados,
 - Verificação em uma tarefa nova/restauração de snapshot de ambiente.
 
 A sessão não possui conector de implantação Apps Script. A tentativa de leitura HTTP do Sheets retornou 403 na rede do ambiente. O código e a documentação permitem instalar com a conta Google autorizada, sem pedir tokens ou senhas no chat.
+
+## Decisões de implementação
+
+- Helpers do servidor usam sufixo privado e o esquema expõe métodos em objeto, reduzindo endpoints RPC. Risco residual: compatibilidade final de execução deve ser confirmada no Google.
+- CSS nativo e SVG seguem a arquitetura aprovada e dispensam CDN; a referência Taste de landing pages não foi aplicada como template de dashboard. Custo: componentes próprios precisam manter acessibilidade e testes.
+- Filtros e tabelas foram separados em dois HTMLs adicionais para manter responsabilidades claras. O pacote compacto resolve os includes e os testes verificam sua presença; novo módulo exige atualização da allowlist e do empacotamento.
+- O código permanece na branch local `work`, sem merge, push ou publicação remota. O checkout inicial não tinha branch main remota; a entrega não depende de inventar um destino de integração.
